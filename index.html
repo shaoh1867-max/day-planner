@@ -91,6 +91,15 @@
   .footer { text-align: center; margin-top: 2rem; font-size: 11px; color: var(--muted); }
   .footer span { color: var(--muted2); }
 
+  .sync-section { margin-bottom: 1.25rem; }
+  .sync-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .sync-row input[type="text"] { flex: 1; min-width: 0; background: var(--surface2); border: 0.5px solid var(--border2); border-radius: 6px; padding: 7px 10px; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text); outline: none; }
+  .sync-row input[type="text"]:focus { border-color: var(--accent); }
+  .btn-sync { background: transparent; border: 0.5px solid var(--border2); border-radius: 6px; padding: 7px 14px; font-size: 12px; color: var(--text); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.15s; white-space: nowrap; }
+  .btn-sync:hover { background: var(--surface2); }
+  .btn-sync.copied { color: var(--green); border-color: var(--green); }
+  .sync-hint { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
   .custom-cd { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 12px; }
   .custom-cd-label { font-size: 12px; color: var(--muted2); white-space: nowrap; }
   .custom-cd input[type="time"] { background: var(--surface2); border: 0.5px solid var(--border2); border-radius: 6px; padding: 5px 10px; font-family: 'DM Mono', monospace; font-size: 13px; color: var(--text); outline: none; }
@@ -198,7 +207,19 @@
     </div>
   </div>
 
-  <div class="footer">blocks reset at 5am &mdash; settings persist &mdash; <span id="last-reset-display"></span></div>
+  <div class="section sync-section">
+    <div class="section-label">Sync across devices</div>
+    <div class="card">
+      <div class="sync-row">
+        <input type="text" id="sync-input" placeholder="Paste sync code here…">
+        <button class="btn-sync" id="btn-copy" onclick="copySyncCode()">Copy code</button>
+        <button class="btn-sync" onclick="loadSyncCode()">Load code</button>
+      </div>
+      <div class="sync-hint">On this device: tap <strong>Copy code</strong> → on another device: paste it in the box and tap <strong>Load code</strong>.</div>
+    </div>
+  </div>
+
+  <div class="footer">blocks reset at 4am &mdash; settings persist &mdash; <span id="last-reset-display"></span></div>
 
 </div>
 
@@ -417,6 +438,37 @@
       customBlocks = [];
       renderBlockList();
       document.getElementById('last-reset-display').textContent = 'last reset today';
+    }
+  }
+
+  function copySyncCode() {
+    const stored = JSON.parse(localStorage.getItem('dayplanner') || '{}');
+    const payload = { settings: stored.settings, blocks: stored.blocks || [], blocksDate: stored.blocksDate };
+    const code = btoa(JSON.stringify(payload));
+    navigator.clipboard.writeText(code).then(() => {
+      const btn = document.getElementById('btn-copy');
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy code'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+
+  function loadSyncCode() {
+    const raw = document.getElementById('sync-input').value.trim();
+    if (!raw) return;
+    try {
+      const payload = JSON.parse(atob(raw));
+      const stored = JSON.parse(localStorage.getItem('dayplanner') || '{}');
+      if (payload.settings) stored.settings = payload.settings;
+      if (payload.blocks) { stored.blocks = payload.blocks; stored.blocksDate = payload.blocksDate || getTodayKey(); }
+      localStorage.setItem('dayplanner', JSON.stringify(stored));
+      document.getElementById('sync-input').value = '';
+      load();
+      renderBlockList();
+      calc();
+      calcCustom();
+    } catch(e) {
+      alert('Invalid sync code — please copy it again from the other device.');
     }
   }
 
