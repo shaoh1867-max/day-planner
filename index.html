@@ -371,18 +371,23 @@
 
     const segs = [
       { start: wake, end: morn_end, color: '#3a5c8a', label: 'morning' },
-      { start: work_start, end: work_end, color: '#2d6647', label: 'work' },
       { start: WINDDOWN, end: BEDTIME, color: '#3a3a3e', label: 'wind-down' },
     ];
     customBlocks.forEach(b => segs.push({ start: toMins(b.start), end: toMins(b.end), color: b.color + 'bb', label: b.name }));
 
+    const workLines = [
+      { at: work_start, label: 'work start', time: fmtTimeMins(work_start) },
+      { at: work_end,   label: 'work end',   time: fmtTimeMins(work_end) },
+    ];
+
     const tl = document.getElementById('timeline');
     tl.innerHTML = segs.map(s => `<div class="tl-seg" style="left:${pct(s.start)}%;width:${w(s.start,s.end)}%;background:${s.color};"></div>`).join('')
+      + workLines.map(l => `<div class="tl-now" style="left:${pct(l.at)}%;background:#e84040;"></div>`).join('')
       + (now >= wake && now <= BEDTIME ? `<div class="tl-now" style="left:${pct(now)}%"></div>` : '');
 
     document.getElementById('tl-times').innerHTML = `<span>${fmtTimeMins(wake)}</span><span>${fmtTimeMins(Math.round((wake+BEDTIME)/2))}</span><span>${fmtTimeMins(BEDTIME)}</span>`;
 
-    document.getElementById('tl-legend').innerHTML = segs.map(s => {
+    const segLegend = segs.map(s => {
       const dur = s.end - s.start;
       return `<div class="tl-legend-item">
         <div class="tl-legend-dot" style="background:${s.color}"></div>
@@ -391,6 +396,14 @@
         <span class="tl-legend-dur">(${fmtDur(dur)})</span>
       </div>`;
     }).join('');
+
+    const workLegend = workLines.map(l => `<div class="tl-legend-item">
+        <div style="width:8px;height:14px;border-left:2px solid #e84040;flex-shrink:0;"></div>
+        <span class="tl-legend-name">${l.label}</span>
+        <span class="tl-legend-time">${l.time}</span>
+      </div>`).join('');
+
+    document.getElementById('tl-legend').innerHTML = segLegend + workLegend;
   }
 
   function checkReset() {
