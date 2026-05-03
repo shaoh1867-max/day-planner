@@ -91,14 +91,12 @@
   .footer { text-align: center; margin-top: 2rem; font-size: 11px; color: var(--muted); }
   .footer span { color: var(--muted2); }
 
-  .sync-section { margin-bottom: 1.25rem; }
-  .sync-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .sync-row input[type="text"] { flex: 1; min-width: 0; background: var(--surface2); border: 0.5px solid var(--border2); border-radius: 6px; padding: 7px 10px; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text); outline: none; }
-  .sync-row input[type="text"]:focus { border-color: var(--accent); }
-  .btn-sync { background: transparent; border: 0.5px solid var(--border2); border-radius: 6px; padding: 7px 14px; font-size: 12px; color: var(--text); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.15s; white-space: nowrap; }
-  .btn-sync:hover { background: var(--surface2); }
-  .btn-sync.copied { color: var(--green); border-color: var(--green); }
-  .sync-hint { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .sync-status { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex-shrink: 0; transition: background 0.3s; }
+  .sync-dot.synced { background: var(--green); }
+  .sync-dot.syncing { background: var(--amber); animation: pulse 1s infinite; }
+  .sync-dot.error { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
   .custom-cd { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 12px; }
   .custom-cd-label { font-size: 12px; color: var(--muted2); white-space: nowrap; }
@@ -122,7 +120,7 @@
 
   <div class="top-bar">
     <div class="date" id="today-date"></div>
-    <div class="reset-note">resets at 5am daily</div>
+    <div class="sync-status"><div class="sync-dot" id="sync-dot"></div><span id="sync-label">connecting…</span></div>
   </div>
 
   <div class="hero">
@@ -207,18 +205,6 @@
     </div>
   </div>
 
-  <div class="section sync-section">
-    <div class="section-label">Sync across devices</div>
-    <div class="card">
-      <div class="sync-row">
-        <input type="text" id="sync-input" placeholder="Paste sync code here…">
-        <button class="btn-sync" id="btn-copy" onclick="copySyncCode()">Copy code</button>
-        <button class="btn-sync" onclick="loadSyncCode()">Load code</button>
-      </div>
-      <div class="sync-hint">On this device: tap <strong>Copy code</strong> → on another device: paste it in the box and tap <strong>Load code</strong>.</div>
-    </div>
-  </div>
-
   <div class="footer">blocks reset at 4am &mdash; settings persist &mdash; <span id="last-reset-display"></span></div>
 
 </div>
@@ -279,6 +265,7 @@
     stored.settings = stored.settings || {};
     stored.settings.custom_target = document.getElementById('custom_target').value;
     localStorage.setItem('dayplanner', JSON.stringify(stored));
+    pushToCloud();
   }
 
   function calcCustom() {
@@ -303,6 +290,7 @@
     stored.blocks = customBlocks;
     stored.blocksDate = todayKey;
     localStorage.setItem('dayplanner', JSON.stringify(stored));
+    pushToCloud();
   }
 
   let customBlocks = [];
@@ -441,34 +429,38 @@
     }
   }
 
-  function copySyncCode() {
-    const stored = JSON.parse(localStorage.getItem('dayplanner') || '{}');
-    const payload = { settings: stored.settings, blocks: stored.blocks || [], blocksDate: stored.blocksDate };
-    const code = btoa(JSON.stringify(payload));
-    navigator.clipboard.writeText(code).then(() => {
-      const btn = document.getElementById('btn-copy');
-      btn.textContent = 'Copied!';
-      btn.classList.add('copied');
-      setTimeout(() => { btn.textContent = 'Copy code'; btn.classList.remove('copied'); }, 2000);
-    });
+  const DB_URL = 'https://day-planner-933bd-default-rtdb.asia-southeast1.firebasedatabase.app/planner.json';
+
+  function setSyncStatus(state, label) {
+    document.getElementById('sync-dot').className = 'sync-dot ' + state;
+    document.getElementById('sync-label').textContent = label;
   }
 
-  function loadSyncCode() {
-    const raw = document.getElementById('sync-input').value.trim();
-    if (!raw) return;
+  async function pushToCloud() {
+    setSyncStatus('syncing', 'syncing…');
     try {
-      const payload = JSON.parse(atob(raw));
       const stored = JSON.parse(localStorage.getItem('dayplanner') || '{}');
-      if (payload.settings) stored.settings = payload.settings;
-      if (payload.blocks) { stored.blocks = payload.blocks; stored.blocksDate = payload.blocksDate || getTodayKey(); }
-      localStorage.setItem('dayplanner', JSON.stringify(stored));
-      document.getElementById('sync-input').value = '';
-      load();
-      renderBlockList();
-      calc();
-      calcCustom();
+      await fetch(DB_URL, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(stored) });
+      setSyncStatus('synced', 'synced');
     } catch(e) {
-      alert('Invalid sync code — please copy it again from the other device.');
+      setSyncStatus('error', 'sync failed');
+    }
+  }
+
+  async function pullFromCloud() {
+    try {
+      const res = await fetch(DB_URL);
+      const data = await res.json();
+      if (data && typeof data === 'object') {
+        localStorage.setItem('dayplanner', JSON.stringify(data));
+        load();
+        renderBlockList();
+        calc();
+        calcCustom();
+        setSyncStatus('synced', 'synced');
+      }
+    } catch(e) {
+      setSyncStatus('error', 'sync failed');
     }
   }
 
@@ -478,9 +470,12 @@
   calc();
   calcCustom();
 
+  pullFromCloud();
+
   setInterval(calc, 30000);
   setInterval(calcCustom, 30000);
   setInterval(checkReset, 60000);
+  setInterval(pullFromCloud, 30000);
 </script>
 </body>
 </html>
