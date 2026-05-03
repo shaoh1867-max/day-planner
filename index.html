@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e0f;
+    --surface: #161618;
+    --surface2: #1e1e21;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #f0efe8;
+    --muted: #6b6a66;
+    --muted2: #9a9994;
+    --green: #3ddc84;
+    --amber: #f5a623;
+    --red: #e84040;
+    --accent: #3ddc84;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+  .container { max-width: 680px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+
+  .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; }
+  .top-bar .date { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+  .top-bar .reset-note { font-size: 11px; color: var(--muted); }
+
+  .hero { text-align: center; padding: 2.5rem 1rem 2rem; border: 0.5px solid var(--border); border-radius: 16px; background: var(--surface); margin-bottom: 1.25rem; position: relative; overflow: hidden; }
+  .hero::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 0%, rgba(61,220,132,0.04) 0%, transparent 70%); pointer-events: none; }
+  .cd-number { font-family: 'DM Mono', monospace; font-size: 80px; font-weight: 300; line-height: 1; letter-spacing: -3px; transition: color 0.5s; }
+  .cd-unit { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--muted); margin-top: 4px; letter-spacing: 0.12em; text-transform: uppercase; }
+  .cd-sub { font-size: 13px; color: var(--muted2); margin-top: 10px; }
+  .cd-bar-wrap { height: 3px; background: var(--surface2); border-radius: 2px; margin: 20px auto 0; max-width: 260px; }
+  .cd-bar { height: 3px; border-radius: 2px; transition: width 1s linear, background 0.5s; }
+
+  .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.25rem; }
+  .metric { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .metric .ml { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
+  .metric .mv { font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 400; color: var(--text); }
+
+  .tl-wrap { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 1.25rem; }
+  .timeline { position: relative; height: 36px; border-radius: 6px; overflow: hidden; background: var(--surface2); margin-bottom: 8px; }
+  .tl-seg { position: absolute; top: 0; height: 100%; }
+  .tl-now { position: absolute; top: 0; width: 2px; height: 100%; background: rgba(255,255,255,0.6); z-index: 10; }
+  .tl-times { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); display: flex; justify-content: space-between; margin-bottom: 12px; }
+  .tl-legend { display: flex; flex-direction: column; gap: 6px; }
+  .tl-legend-item { display: flex; align-items: center; gap: 8px; }
+  .tl-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .tl-legend-name { font-size: 12px; color: var(--text); min-width: 90px; }
+  .tl-legend-time { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted2); }
+  .tl-legend-dur { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+
+  .section { margin-bottom: 1.25rem; }
+  .section-label { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+  .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .field-row { display: flex; align-items: center; gap: 12px; padding: 7px 0; border-bottom: 0.5px solid var(--border); }
+  .field-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .field-row:first-child { padding-top: 0; }
+  .field-row label { font-size: 12px; color: var(--muted2); min-width: 130px; }
+  .field-row input[type="time"] { flex: 1; background: var(--surface2); border: 0.5px solid var(--border2); border-radius: 6px; padding: 5px 10px; font-family: 'DM Mono', monospace; font-size: 13px; color: var(--text); outline: none; }
+  .field-row input[type="time"]:focus { border-color: var(--accent); }
+  .locked-badge { font-size: 10px; color: var(--muted); background: var(--surface2); border: 0.5px solid var(--border); border-radius: 4px; padding: 2px 7px; letter-spacing: 0.05em; }
+  .locked-time { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--muted2); }
+
+  .add-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .add-row input[type="text"] { flex: 1; min-width: 100px; background: var(--surface2); border: 0.5px solid var(--border2); border-radius: 6px; padding: 7px 10px; font-size: 13px; color: var(--text); outline: none; font-family: 'DM Sans', sans-serif; }
+  .add-row input[type="text"]:focus { border-color: var(--accent); }
+  .add-row input[type="time"] { background: var(--surface2); border: 0.5px solid var(--border2); border-radius: 6px; padding: 7px 10px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text); outline: none; }
+  .add-row input[type="time"]:focus { border-color: var(--accent); }
+  .add-row select { background: var(--surface2); border: 0.5px solid var(--border2); border-radius: 6px; padding: 7px 10px; font-size: 12px; color: var(--text); outline: none; cursor: pointer; }
+  .btn-add { background: transparent; border: 0.5px solid var(--border2); border-radius: 6px; padding: 7px 14px; font-size: 12px; color: var(--text); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.15s; white-space: nowrap; }
+  .btn-add:hover { background: var(--surface2); }
+
+  .block-list { display: flex; flex-direction: column; gap: 6px; }
+  .block-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: var(--surface2); border: 0.5px solid var(--border); border-radius: 8px; }
+  .block-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .block-info { flex: 1; min-width: 0; }
+  .block-top { display: flex; align-items: baseline; gap: 8px; }
+  .block-name { font-size: 13px; color: var(--text); }
+  .block-dur { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted2); }
+  .block-time-row { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .btn-remove { font-size: 10px; color: var(--red); cursor: pointer; border: none; background: none; padding: 0 2px; opacity: 0.7; flex-shrink: 0; font-family: 'DM Sans', sans-serif; }
+  .btn-remove:hover { opacity: 1; }
+
+  .empty-blocks { font-size: 12px; color: var(--muted); text-align: center; padding: 12px 0; }
+
+  .footer { text-align: center; margin-top: 2rem; font-size: 11px; color: var(--muted); }
+  .footer span { color: var(--muted2); }
+
+  input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(0.5); cursor: pointer; }
+
+  @media (max-width: 480px) {
+    .cd-number { font-size: 60px; }
+    .metrics { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .metric { padding: 10px 10px; }
+    .metric .mv { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="top-bar">
+    <div class="date" id="today-date"></div>
+    <div class="reset-note">resets at 5am daily</div>
+  </div>
+
+  <div class="hero">
+    <div class="cd-number" id="cd-num">—</div>
+    <div class="cd-unit">hours left before wind-down</div>
+    <div class="cd-sub" id="cd-sub"></div>
+    <div class="cd-bar-wrap"><div class="cd-bar" id="cd-bar" style="width:0%"></div></div>
+  </div>
+
+  <div class="metrics" id="metrics"></div>
+
+  <div class="tl-wrap">
+    <div class="timeline" id="timeline"></div>
+    <div class="tl-times" id="tl-times"></div>
+    <div class="tl-legend" id="tl-legend"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Fixed anchors</div>
+    <div class="card">
+      <div class="field-row">
+        <label>Wake up</label>
+        <input type="time" id="wake" value="06:30" oninput="save();calc()">
+      </div>
+      <div class="field-row">
+        <label>Morning routine ends</label>
+        <input type="time" id="morn_end" value="07:30" oninput="save();calc()">
+      </div>
+      <div class="field-row">
+        <label>Wind-down starts</label>
+        <span class="locked-time">8:45pm</span>
+        <span class="locked-badge">locked</span>
+      </div>
+      <div class="field-row">
+        <label>Bedtime</label>
+        <span class="locked-time">10:00pm</span>
+        <span class="locked-badge">locked</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Today's work shift</div>
+    <div class="card">
+      <div class="field-row">
+        <label>Work starts</label>
+        <input type="time" id="work_start" value="09:00" oninput="save();calc()">
+      </div>
+      <div class="field-row">
+        <label>Work ends</label>
+        <input type="time" id="work_end" value="17:00" oninput="save();calc()">
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Extra blocks</div>
+    <div class="card">
+      <div class="add-row">
+        <input type="text" id="new_name" placeholder="e.g. gym, meal prep">
+        <input type="time" id="new_start" value="07:30">
+        <input type="time" id="new_end" value="08:30">
+        <select id="new_color">
+          <option value="#3ddc84">Green</option>
+          <option value="#5dcaa5">Teal</option>
+          <option value="#f5a623">Amber</option>
+          <option value="#b5d4f4">Blue</option>
+          <option value="#ed93b1">Pink</option>
+          <option value="#f09595">Coral</option>
+        </select>
+        <button class="btn-add" onclick="addBlock()">+ Add</button>
+      </div>
+      <div class="block-list" id="block-list">
+        <div class="empty-blocks">no blocks added yet</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">blocks reset at 5am &mdash; settings persist &mdash; <span id="last-reset-display"></span></div>
+
+</div>
+
+<script>
+  const WINDDOWN = 20 * 60 + 45; // 8:45pm fixed
+  const BEDTIME  = 22 * 60;       // 10:00pm fixed
+  const RESET_HOUR = 5;           // 5am reset
+
+  function toMins(s) { const [h,m] = s.split(':').map(Number); return h*60+m; }
+  function fromMins(m) { const h=Math.floor(((m%1440)+1440)%1440/60); const mm=((m%1440)+1440)%1440%60; return (h<10?'0':'')+h+':'+(mm<10?'0':'')+mm; }
+  function fmtDur(mins) { if(mins<=0)return'0m'; const h=Math.floor(mins/60); const m=mins%60; return h>0?(h+'h'+(m>0?' '+m+'m':'')):(m+'m'); }
+  function fmtTime(s) { const [h,m]=s.split(':').map(Number); const ap=h>=12?'pm':'am'; const hh=h%12||12; return hh+(m>0?':'+(m<10?'0'+m:m):'')+ap; }
+  function fmtTimeMins(mins) { return fmtTime(fromMins(mins)); }
+  function nowMins() { const n=new Date(); return n.getHours()*60+n.getMinutes(); }
+
+  function getTodayKey() {
+    const now = new Date();
+    let d = new Date(now);
+    if (now.getHours() < RESET_HOUR) d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0,10);
+  }
+
+  function load() {
+    const todayKey = getTodayKey();
+    const stored = JSON.parse(localStorage.getItem('dayplanner') || '{}');
+
+    // Settings persist across days
+    if (stored.settings) {
+      const s = stored.settings;
+      if (s.wake) document.getElementById('wake').value = s.wake;
+      if (s.morn_end) document.getElementById('morn_end').value = s.morn_end;
+      if (s.work_start) document.getElementById('work_start').value = s.work_start;
+      if (s.work_end) document.getElementById('work_end').value = s.work_end;
+    }
+
+    // Blocks reset daily
+    if (stored.blocksDate === todayKey && stored.blocks) {
+      customBlocks = stored.blocks;
+    } else {
+      customBlocks = [];
+      // Save reset
+      stored.blocksDate = todayKey;
+      stored.blocks = [];
+      stored.lastReset = new Date().toISOString();
+      localStorage.setItem('dayplanner', JSON.stringify(stored));
+    }
+
+    if (stored.lastReset) {
+      const lr = new Date(stored.lastReset);
+      document.getElementById('last-reset-display').textContent = 'last reset ' + lr.toLocaleDateString('en-NZ', {day:'numeric',month:'short'});
+    }
+  }
+
+  function save() {
+    const todayKey = getTodayKey();
+    const stored = JSON.parse(localStorage.getItem('dayplanner') || '{}');
+    stored.settings = {
+      wake: document.getElementById('wake').value,
+      morn_end: document.getElementById('morn_end').value,
+      work_start: document.getElementById('work_start').value,
+      work_end: document.getElementById('work_end').value,
+    };
+    stored.blocks = customBlocks;
+    stored.blocksDate = todayKey;
+    localStorage.setItem('dayplanner', JSON.stringify(stored));
+  }
+
+  let customBlocks = [];
+
+  function addBlock() {
+    const name = document.getElementById('new_name').value.trim() || 'Block';
+    const start = document.getElementById('new_start').value;
+    const end = document.getElementById('new_end').value;
+    const color = document.getElementById('new_color').value;
+    if (toMins(end) - toMins(start) <= 0) return;
+    customBlocks.push({ name, start, end, color, id: Date.now() });
+    document.getElementById('new_name').value = '';
+    save();
+    renderBlockList();
+    calc();
+  }
+
+  function removeBlock(id) {
+    customBlocks = customBlocks.filter(b => b.id !== id);
+    save();
+    renderBlockList();
+    calc();
+  }
+
+  function renderBlockList() {
+    const el = document.getElementById('block-list');
+    if (!customBlocks.length) { el.innerHTML = '<div class="empty-blocks">no blocks added yet</div>'; return; }
+    el.innerHTML = customBlocks.map(b => {
+      const dur = toMins(b.end) - toMins(b.start);
+      return `<div class="block-item">
+        <div class="block-dot" style="background:${b.color}"></div>
+        <div class="block-info">
+          <div class="block-top"><span class="block-name">${b.name}</span><span class="block-dur">${fmtDur(dur)}</span></div>
+          <div class="block-time-row">${fmtTime(b.start)} – ${fmtTime(b.end)}</div>
+        </div>
+        <button class="btn-remove" onclick="removeBlock(${b.id})">remove</button>
+      </div>`;
+    }).join('');
+  }
+
+  function setTodayDate() {
+    const now = new Date();
+    document.getElementById('today-date').textContent = now.toLocaleDateString('en-NZ', { weekday:'long', day:'numeric', month:'long' });
+  }
+
+  function calc() {
+    const wake = toMins(document.getElementById('wake').value);
+    const morn_end = toMins(document.getElementById('morn_end').value);
+    const work_start = toMins(document.getElementById('work_start').value);
+    const work_end = toMins(document.getElementById('work_end').value);
+    const now = nowMins();
+
+    const remaining = Math.max(0, WINDDOWN - now);
+    const totalUsable = WINDDOWN - wake;
+    const elapsed = Math.max(0, now - wake);
+    const pctGone = totalUsable > 0 ? Math.min(100, Math.round(elapsed / totalUsable * 100)) : 0;
+    const workDur = work_end - work_start;
+    const morningDur = morn_end - wake;
+    const customTotal = customBlocks.reduce((a,b) => a + (toMins(b.end) - toMins(b.start)), 0);
+    const freeTime = Math.max(0, WINDDOWN - wake - morningDur - workDur - customTotal);
+
+    const remH = Math.floor(remaining / 60);
+    const remM = remaining % 60;
+    const cdText = remaining > 0 ? (remH > 0 ? remH + 'h ' + (remM > 0 ? remM + 'm' : '') : remM + 'm') : 'Done';
+    const barColor = remaining > 180 ? '#3ddc84' : remaining > 60 ? '#f5a623' : '#e84040';
+    const textColor = remaining > 180 ? '#3ddc84' : remaining > 60 ? '#f5a623' : '#e84040';
+
+    document.getElementById('cd-num').textContent = cdText;
+    document.getElementById('cd-num').style.color = textColor;
+    document.getElementById('cd-sub').textContent = remaining > 0 ? 'wind-down at 8:45pm · bed at 10:00pm' : 'time to wind down';
+    document.getElementById('cd-bar').style.width = pctGone + '%';
+    document.getElementById('cd-bar').style.background = barColor;
+
+    document.getElementById('metrics').innerHTML = `
+      <div class="metric"><div class="ml">Work shift</div><div class="mv">${fmtDur(workDur)}</div></div>
+      <div class="metric"><div class="ml">Free time</div><div class="mv">${fmtDur(freeTime)}</div></div>
+      <div class="metric"><div class="ml">Day used</div><div class="mv">${pctGone}%</div></div>
+    `;
+
+    renderTimeline(wake, morn_end, work_start, work_end, now);
+  }
+
+  function renderTimeline(wake, morn_end, work_start, work_end, now) {
+    const span = BEDTIME - wake;
+    function pct(m) { return Math.min(100, Math.max(0, (m - wake) / span * 100)); }
+    function w(s, e) { return Math.max(0, pct(e) - pct(s)); }
+
+    const segs = [
+      { start: wake, end: morn_end, color: '#3a5c8a', label: 'morning' },
+      { start: work_start, end: work_end, color: '#2d6647', label: 'work' },
+      { start: WINDDOWN, end: BEDTIME, color: '#3a3a3e', label: 'wind-down' },
+    ];
+    customBlocks.forEach(b => segs.push({ start: toMins(b.start), end: toMins(b.end), color: b.color + 'bb', label: b.name }));
+
+    const tl = document.getElementById('timeline');
+    tl.innerHTML = segs.map(s => `<div class="tl-seg" style="left:${pct(s.start)}%;width:${w(s.start,s.end)}%;background:${s.color};"></div>`).join('')
+      + (now >= wake && now <= BEDTIME ? `<div class="tl-now" style="left:${pct(now)}%"></div>` : '');
+
+    document.getElementById('tl-times').innerHTML = `<span>${fmtTimeMins(wake)}</span><span>${fmtTimeMins(Math.round((wake+BEDTIME)/2))}</span><span>${fmtTimeMins(BEDTIME)}</span>`;
+
+    document.getElementById('tl-legend').innerHTML = segs.map(s => {
+      const dur = s.end - s.start;
+      return `<div class="tl-legend-item">
+        <div class="tl-legend-dot" style="background:${s.color}"></div>
+        <span class="tl-legend-name">${s.label}</span>
+        <span class="tl-legend-time">${fmtTimeMins(s.start)} – ${fmtTimeMins(s.end)}</span>
+        <span class="tl-legend-dur">(${fmtDur(dur)})</span>
+      </div>`;
+    }).join('');
+  }
+
+  function checkReset() {
+    const todayKey = getTodayKey();
+    const stored = JSON.parse(localStorage.getItem('dayplanner') || '{}');
+    if (stored.blocksDate && stored.blocksDate !== todayKey) {
+      stored.blocksDate = todayKey;
+      stored.blocks = [];
+      stored.lastReset = new Date().toISOString();
+      localStorage.setItem('dayplanner', JSON.stringify(stored));
+      customBlocks = [];
+      renderBlockList();
+      document.getElementById('last-reset-display').textContent = 'last reset today';
+    }
+  }
+
+  load();
+  setTodayDate();
+  renderBlockList();
+  calc();
+
+  setInterval(calc, 30000);
+  setInterval(checkReset, 60000);
+</script>
+</body>
+</html>
