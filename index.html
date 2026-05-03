@@ -192,7 +192,7 @@
 <script>
   const WINDDOWN = 20 * 60 + 45; // 8:45pm fixed
   const BEDTIME  = 22 * 60;       // 10:00pm fixed
-  const RESET_HOUR = 5;           // 5am reset
+  const RESET_HOUR = 4;           // 4am reset
 
   function toMins(s) { const [h,m] = s.split(':').map(Number); return h*60+m; }
   function fromMins(m) { const h=Math.floor(((m%1440)+1440)%1440/60); const mm=((m%1440)+1440)%1440%60; return (h<10?'0':'')+h+':'+(mm<10?'0':'')+mm; }
